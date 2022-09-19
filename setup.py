@@ -19,7 +19,7 @@ setup(
     author="MIE Lab",
     author_email=("nwiedemann@ethz.ch"),
     license="GPLv3",
-    url="https://github.com/mie-lab/spatial_rf_python,
+    url="https://github.com/mie-lab/spatial_rf_python",
     install_requires=["numpy", "scipy", "pandas", "scikit-learn"],
     classifiers=[
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",

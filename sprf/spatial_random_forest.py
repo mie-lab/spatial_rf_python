@@ -67,7 +67,9 @@ class SpatialRandomForest:
         return point_clouds
 
     def fit(self, x_train, y_train, coords_train):
-        coords_train = np.array(coords_train)
+        x_train, y_train, coords_train = (
+            np.array(x_train), np.array(y_train), np.array(coords_train)
+        )
         assert len(coords_train.shape) == 2 and coords_train.shape[
             1] == 2, "coords test must have len 2 in dimension 1"
 
@@ -76,13 +78,15 @@ class SpatialRandomForest:
         point_clouds = self._sample_point_clouds(coords_train)
         if len(point_clouds) < self.nr_estimators:
             warnings.warn(
-                f"Some point clouds had less than {self.min_points_distance} points and are therefore ignored.\
-                     Consider increasing the parameter 'max_distance' to include more points"
+                f"Some point clouds had less than {self.min_points_distance}\
+                     points and are therefore ignored.\
+                     Consider increasing the parameter 'max_distance'\
+                         to include more points"
             )
             # correct number of estimators
             self.nr_estimators = len(point_clouds)
             self.estimators = self.estimators[:self.nr_estimators]
-        # correct estimator core points: Use center of gravity of each point clouds
+        # correct core points: Use center of gravity of each point clouds
         self.estimator_core_points = np.array(
             [
                 np.mean(coords_train[cloud_inds], axis=0)

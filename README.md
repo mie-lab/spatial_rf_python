@@ -27,4 +27,11 @@ spatial_rf.fit(train_x, train_y, train_coords)
 test_pred = spatial_rf.predict(test_x, test_coords)
 ```
 
-See class documentation and examples.
+### Benchmarking
+
+In the [benchmarking notebook](benchmarks.ipynb), we compare the spatial RF on some benchmark datasets (see [data](data) folder), namely:
+* A [plants](https://github.com/BlasBenito/spatialRF/blob/main/data/plant_richness_df.rda) dataset
+* A [deforestation](https://github.com/FSantosCodes/GWRFC/tree/master/data) dataset
+* A [mortality rate](https://www.dropbox.com/s/lrz6og0ld2m64df/Data_GWR.7z?dl=0) dataset from [here](https://zia207.github.io/geospatial-r-github.io/geographically-wighted-random-forest.html)
+
+All of these datasets were used by other spatial random forest implementations. Please cite their work if reusing their data.
