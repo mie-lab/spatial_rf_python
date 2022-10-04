@@ -9,6 +9,7 @@ __pycache__/
 # vscode and mac
 .DS_Store
 *.code-workspace
+*.drawio
 
 # directories
 data_orig/
