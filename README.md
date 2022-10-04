@@ -14,7 +14,7 @@ To install sprf in a new Python environment, run
 cd spatial_rf_python
 python -m venv env
 source env/bin/activate
-pip install -e .
+pip install .
 ```
 
 ### Usage
