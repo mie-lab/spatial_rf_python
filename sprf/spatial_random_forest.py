@@ -96,9 +96,8 @@ class SpatialRandomForest:
         # TODO: elif sample_mode == "grid":
         elif self.sample_mode == "random":
             # select random coordinates from the train data as core points
-            core_points = coords[
-                np.random.permutation(len(coords))[: self.n_estimators]
-            ]
+            core_points = coords[np.random.permutation(len(coords)
+                                                       )[:self.n_estimators]]
         else:
             raise NotImplementedError(
                 "sample mode must be one of cluster, random"
@@ -114,11 +113,11 @@ class SpatialRandomForest:
         point_clouds = []
         for core_point in self.estimator_core_points:
             # Compute distance of the core point to all coordinates
-            dist_to_others = np.sqrt(np.sum((coords - core_point) ** 2, axis=1))
+            dist_to_others = np.sqrt(np.sum((coords - core_point)**2, axis=1))
             if self.sample_by == "neighbors":
                 # add fixed number of closest samples
                 point_clouds.append(
-                    np.argsort(dist_to_others)[: self.neighbors]
+                    np.argsort(dist_to_others)[:self.neighbors]
                 )
             elif self.sample_by == "distance":
                 # filter by distance
@@ -174,7 +173,7 @@ class SpatialRandomForest:
             )
             # correct number of estimators
             self.n_estimators = len(point_clouds)
-            self.estimators = self.estimators[: self.n_estimators]
+            self.estimators = self.estimators[:self.n_estimators]
         # correct core points: Use center of gravity of each point clouds
         self.estimator_core_points = np.array(
             [
@@ -214,9 +213,11 @@ class SpatialRandomForest:
         y : ndarray of shape (n_samples,) or (n_samples, n_outputs)
             The predicted values.
         """
-        assert (
-            coords_test is not None
-        ) or weighted == False, (
+        # convert to arrays
+        x_test = np.array(x_test)
+        if coords_test is not None:
+            coords_test = np.array(coords_test)
+        assert (coords_test is not None) or weighted == False, (
             "If weighted=True, then coords_test is required."
         )
         # predict output with each base estimator
@@ -234,7 +235,7 @@ class SpatialRandomForest:
         # compute distance of test samples to all core points
         dist_to_core_points = np.array(
             [
-                np.sqrt(np.sum((coords_test - core_point) ** 2, axis=1))
+                np.sqrt(np.sum((coords_test - core_point)**2, axis=1))
                 for core_point in self.estimator_core_points
             ]
         ).swapaxes(1, 0)
