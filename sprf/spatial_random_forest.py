@@ -2,7 +2,7 @@ import warnings
 import numpy as np
 from sklearn.cluster import KMeans
 from sklearn.tree import DecisionTreeRegressor
-
+from sklearn.metrics import r2_score
 
 class SpatialRandomForest:
     """
@@ -52,7 +52,7 @@ class SpatialRandomForest:
 
     def __init__(
         self,
-        n_estimators: int = 20,
+        n_estimators: int = 100,
         sample_mode: str = "cluster",
         sample_by: str = "neighbors",
         neighbors: int = 500,
@@ -186,6 +186,46 @@ class SpatialRandomForest:
             x_train_subset = x_train[sample_inds]
             y_train_subset = y_train[sample_inds]
             self.estimators[i].fit(x_train_subset, y_train_subset)
+
+    def tune_neighbors(
+        self,
+        x_train,
+        y_train,
+        coords_train,
+        nr_check=10,
+        eval_criterium=r2_score,
+    ):
+        x_train, y_train, coords_train = (
+            np.array(x_train),
+            np.array(y_train),
+            np.array(coords_train),
+        )
+        max_neighbors = len(x_train)
+        # split in train and val
+        cutoff = int(len(x_train) * 0.9)
+        rand_inds = np.random.permutation(max_neighbors)
+        train_i, val_i = rand_inds[:cutoff], rand_inds[cutoff:]
+        x_val = x_train[val_i]
+        x_train = x_train[train_i]
+        y_val = y_train[val_i]
+        y_train = y_train[train_i]
+        coords_val = coords_train[val_i]
+        coords_train = coords_train[train_i]
+
+        steps_to_check = np.linspace(0, max_neighbors, nr_check + 2).astype(int)
+        best_neighbors = self.neighbors
+        best_performance = -np.inf
+        for neighbors in steps_to_check[1:-1]:
+            self.neighbors = neighbors
+            self.fit(x_train, y_train, coords_train)
+            y_pred = self.predict(x_val, coords_val)
+            performance = eval_criterium(y_pred, y_val)
+            if performance > best_performance:
+                best_neighbors = neighbors
+                best_performance = performance
+
+        # print("Found best bandwidth (neighbors) at ", best_neighbors)
+        self.neighbors = best_neighbors
 
     def predict(self, x_test, coords_test=None, weighted=True):
         """
