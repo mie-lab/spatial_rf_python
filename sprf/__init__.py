@@ -1,1 +1,2 @@
 from sprf.spatial_random_forest import SpatialRandomForest
+from sprf.geographical_random_forest import GeographicalRandomForest
