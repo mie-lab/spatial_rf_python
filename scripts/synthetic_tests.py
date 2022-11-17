@@ -150,8 +150,12 @@ model_names = [
 nr_feats = 5
 max_depth = 10
 
-for nr_data in [300, 1000, 5000]:
+# save results
+results_list = []
+
+for nr_data in [100, 500, 1000]:
     print("\n ======== DATA SAMPLES", nr_data)
+
     # MAKE MAIN DATA
     train_cutoff = int(nr_data * 0.9)
     feat_cols = ["feat_" + str(i) for i in range(nr_feats)]
@@ -159,9 +163,6 @@ for nr_data in [300, 1000, 5000]:
         np.random.rand(nr_data, 2 + nr_feats) * 2 - 1,
         columns=["x_coord", "y_coord"] + feat_cols,
     )
-
-    # for iteration
-    results_list = []
 
     # simulate spatial variation of features and initiallize some weighting
     weights = np.expand_dims(np.random.rand(nr_feats), 0)
