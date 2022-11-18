@@ -37,6 +37,25 @@ def non_linear_function(feat_arr, weights):
     return np.sum(feature_transformed, axis=1)
 
 
+def non_linear_function_2(feat_arr, weights):
+    feature_transformed = np.zeros(feat_arr.shape)
+    a, b, c, d, e = (
+        feat_arr[:, 0],
+        feat_arr[:, 1],
+        feat_arr[:, 2],
+        feat_arr[:, 3],
+        feat_arr[:, 4],
+    )
+    # first term: a**2 * b
+    feature_transformed[:, 0] = a ** 2 * b * weights[:, 0]
+    feature_transformed[:, 1] = b * c * d * weights[:, 1]
+    feature_transformed[:, 2] = e ** 3 * c * weights[:, 2]
+    feature_transformed[:, 3] = d ** 2 * 2 * b * weights[:, 3]
+    feature_transformed[:, 4] = e * a * d * weights[:, 4]
+
+    return np.sum(feature_transformed, axis=1)
+
+
 def linear_regression(train_data, test_data):
     regr = LinearRegression()
     regr.fit(train_data[feat_cols], train_data["label"])
@@ -61,8 +80,9 @@ def rf_global(train_data, test_data):
 
 
 def rf_spatial(train_data, test_data):
+    n_estim = 100 if nr_data > 200 else 50
     regr = SpatialRandomForest(
-        n_estimators=100, neighbors=500, max_depth=max_depth
+        n_estimators=n_estim, neighbors=500, max_depth=max_depth
     )
     regr.tune_neighbors(
         train_data[feat_cols],
@@ -148,12 +168,12 @@ model_names = [
 
 # MAIN PARAMETERS
 nr_feats = 5
-max_depth = 10
+max_depth = 30
 
 # save results
 results_list = []
 
-for nr_data in [100, 500, 1000]:
+for nr_data in [100, 500, 1000, 5000]:
     print("\n ======== DATA SAMPLES", nr_data)
 
     # MAKE MAIN DATA
@@ -187,7 +207,7 @@ for nr_data in [100, 500, 1000]:
                         axis=1,
                     )
                 else:
-                    synthetic_data["label"] = non_linear_function(
+                    synthetic_data["label"] = non_linear_function_2(
                         synthetic_data[feat_cols].values,
                         spatially_dependent_weights,
                     )
