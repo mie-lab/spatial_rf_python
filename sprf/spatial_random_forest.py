@@ -227,7 +227,7 @@ class SpatialRandomForest:
         # print("Found best bandwidth (neighbors) at ", best_neighbors)
         self.neighbors = best_neighbors
 
-    def predict(self, x_test, coords_test=None, weighted=True):
+    def predict(self, x_test, coords_test=None, weighted=True, closest=False):
         """
         Predict class for X.
         The predicted class of an input sample is a vote by the trees in
@@ -265,7 +265,7 @@ class SpatialRandomForest:
         for i, estimator in enumerate(self.estimators):
             y_pred[:, i] = estimator.predict(x_test)
         # If no spatial weighting: Simply return average of estimators
-        if not weighted:
+        if not weighted and not closest:
             return np.mean(y_pred, axis=1)
         # if weighted: check that test coords are alright
         coords_test = np.array(coords_test)
@@ -279,6 +279,9 @@ class SpatialRandomForest:
                 for core_point in self.estimator_core_points
             ]
         ).swapaxes(1, 0)
+        if closest:
+            use_tree = np.argmin(dist_to_core_points, axis=1)
+            return y_pred[np.arange(len(y_pred)), use_tree]
 
         # turn into probabilies
         if np.any(dist_to_core_points == 0):
