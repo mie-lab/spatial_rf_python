@@ -3,7 +3,7 @@ import warnings
 import numpy as np
 
 from sklearn.ensemble import RandomForestRegressor
-
+from sprf.tuning import tune_neighbors
 
 class GeographicalRandomForest:
     """
@@ -86,6 +86,10 @@ class GeographicalRandomForest:
             x_train_subset = x_train[samples_to_fit]
             y_train_subset = y_train[samples_to_fit]
             self.random_forests[core_ind].fit(x_train_subset, y_train_subset)
+
+
+    def tune_neighbors(self, *args, **kwargs):
+        self.neighbors = tune_neighbors(self, *args, **kwargs)
 
     def predict(self, x_test, coords_test):
         x_test = np.array(x_test)

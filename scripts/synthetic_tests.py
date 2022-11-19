@@ -18,7 +18,7 @@ from mgwr.gwr import GWR
 from mgwr.sel_bw import Sel_BW
 
 
-def non_linear_function(feat_arr, weights):
+def non_linear_function_simple(feat_arr, weights):
     if len(weights.shape) == 1:
         weights = np.expand_dims(weights, 0)
     function_zoo = [
@@ -37,7 +37,7 @@ def non_linear_function(feat_arr, weights):
     return np.sum(feature_transformed, axis=1)
 
 
-def non_linear_function_2(feat_arr, weights):
+def non_linear_function(feat_arr, weights):
     feature_transformed = np.zeros(feat_arr.shape)
     a, b, c, d, e = (
         feat_arr[:, 0],
@@ -82,6 +82,27 @@ def rf_global(train_data, test_data):
 def rf_spatial(train_data, test_data):
     n_estim = 100 if nr_data > 200 else 50
     regr = SpatialRandomForest(
+        n_estimators=n_estim, neighbors=500, max_depth=max_depth
+    )
+    regr.tune_neighbors(
+        train_data[feat_cols],
+        train_data["label"],
+        train_data[["x_coord", "y_coord"]],
+    )
+    regr.fit(
+        train_data[feat_cols],
+        train_data["label"],
+        train_data[["x_coord", "y_coord"]],
+    )
+    test_pred = regr.predict(
+        test_data[feat_cols], test_data[["x_coord", "y_coord"]]
+    )
+    return test_pred
+
+
+def rf_geographical(train_data, test_data):
+    n_estim = 50  # 100 if nr_data > 200 else 50
+    regr = GeographicalRandomForest(
         n_estimators=n_estim, neighbors=500, max_depth=max_depth
     )
     regr.tune_neighbors(
@@ -157,6 +178,7 @@ model_function_names = [
     rf_global,
     rf_spatial,
     my_gwr,
+    rf_geographical,
 ]
 model_names = [
     "linear regression",
@@ -164,6 +186,7 @@ model_names = [
     "RF",
     "spatial RF",
     "GWR",
+    "geographical RF",
 ]
 
 # MAIN PARAMETERS
@@ -197,7 +220,7 @@ for nr_data in [100, 500, 1000, 5000]:
                 spatial_variation, 1
             )
 
-            for mode in ["linear", "non-linear"]:
+            for mode in ["linear", "non-linear (simple)", "non-linear"]:
                 print("--------", noise_level, locality, mode)
                 # apply linear or non_linear function
                 if mode == "linear":
@@ -206,8 +229,13 @@ for nr_data in [100, 500, 1000, 5000]:
                         * synthetic_data[feat_cols].values,
                         axis=1,
                     )
+                elif "simple" in mode:
+                    synthetic_data["label"] = non_linear_function_simple(
+                        synthetic_data[feat_cols].values,
+                        spatially_dependent_weights,
+                    )
                 else:
-                    synthetic_data["label"] = non_linear_function_2(
+                    synthetic_data["label"] = non_linear_function(
                         synthetic_data[feat_cols].values,
                         spatially_dependent_weights,
                     )
@@ -233,5 +261,5 @@ for nr_data in [100, 500, 1000, 5000]:
                     add_results(score, name)
 
         results = pd.DataFrame(results_list)
-        results.to_csv("synthetic_data_results.csv")
+        results.to_csv("synthetic_data_results.csv", index=False)
         print("Saved intermediate results")
