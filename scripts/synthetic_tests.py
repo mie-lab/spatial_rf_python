@@ -89,6 +89,7 @@ def rf_spatial(train_data, test_data):
         train_data["label"],
         train_data[["x_coord", "y_coord"]],
     )
+    print("spatial rf tuned:", regr.neighbors)
     regr.fit(
         train_data[feat_cols],
         train_data["label"],
@@ -101,7 +102,7 @@ def rf_spatial(train_data, test_data):
 
 
 def rf_geographical(train_data, test_data):
-    n_estim = 50  # 100 if nr_data > 200 else 50
+    n_estim = 20  # lower number of estimators to reduce runtime
     regr = GeographicalRandomForest(
         n_estimators=n_estim, neighbors=500, max_depth=max_depth
     )
@@ -110,6 +111,7 @@ def rf_geographical(train_data, test_data):
         train_data["label"],
         train_data[["x_coord", "y_coord"]],
     )
+    print("geo rf tuned:", regr.neighbors)
     regr.fit(
         train_data[feat_cols],
         train_data["label"],
@@ -196,6 +198,8 @@ max_depth = 30
 # save results
 results_list = []
 
+weights = np.array([-0.95, 0.38, 0.66, -0.43, 0.22])
+
 for nr_data in [100, 500, 1000, 5000]:
     print("\n ======== DATA SAMPLES", nr_data)
 
@@ -207,18 +211,18 @@ for nr_data in [100, 500, 1000, 5000]:
         columns=["x_coord", "y_coord"] + feat_cols,
     )
 
-    # simulate spatial variation of features and initiallize some weighting
-    weights = np.expand_dims(np.random.rand(nr_feats), 0)
-    spatial_variation = 0.5 * np.sin(
-        synthetic_data["x_coord"].values * np.pi
-    ) + np.cos(synthetic_data["y_coord"].values * np.pi)
+    # simulate spatial variation of features (varying per weight)
+    spatial_variation = np.zeros((nr_data, nr_feats))
+    for i in range(nr_feats):
+        spatial_variation[:, i] = 0.5 * (
+            np.sin(synthetic_data["x_coord"].values * np.pi * 1.5 + i)
+            + np.cos(synthetic_data["y_coord"].values * np.pi * 1.5 + i)
+        )
 
     for noise_level in noise_level_range:
         for locality in locality_range:
             # spatially dependent but linear
-            spatially_dependent_weights = weights + locality * np.expand_dims(
-                spatial_variation, 1
-            )
+            spatially_dependent_weights = weights + locality * spatial_variation
 
             for mode in ["linear", "non-linear (simple)", "non-linear"]:
                 print("--------", noise_level, locality, mode)
