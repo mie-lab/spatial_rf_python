@@ -145,47 +145,33 @@ def cross_validation(data):
         )
 
         # Method 6: GWR:
-        try:
-            tic = time.time()
-            train_coords = np.array(train_coords)
-            train_y = np.expand_dims(np.array(train_y), 1)
-            train_x = np.array(train_x)
-            # bandwidth selection
-            # print(train_coords)
-            # print()
-            # print(train_y)
-            # print()
-            # print(train_x)
-            # print("---------")
-            gwr_selector = Sel_BW(
-                train_coords,
-                train_y,
-                train_x,
-                fixed=True,
-                kernel="exponential"
-            )
-            gwr_bw = gwr_selector.search(criterion="AICc")
-            # create and train model
-            model = GWR(
-                train_coords,
-                train_y,
-                train_x,
-                gwr_bw,
-                kernel="exponential",
-                fixed=True
-            )
-            gwr_results = model.fit()
-            # predict
-            test_pred = model.predict(
-                np.asarray(test_coords), test_x, gwr_results.scale,
-                gwr_results.resid_response
-            ).predictions
-            runtime = time.time() - tic
-            res_df.append(
-                add_metrics(test_pred, test_y, res_dict_init, "GWR", runtime)
-            )
-        except:
-            print("GWR NOT POSSIBLE FOR", DATASET)
+        tic = time.time()
+        train_coords = np.array(train_coords)
+        train_y = np.expand_dims(np.array(train_y), 1)
+        train_x = np.array(train_x)
+        gwr_selector = Sel_BW(
+            train_coords,
+            train_y,
+            train_x,
+        )
+        gwr_bw = gwr_selector.search(criterion="AICc")
+        # create and train model
+        model = GWR(
+            train_coords,
+            train_y,
+            train_x,
+            gwr_bw,
+        )
+        gwr_results = model.fit()
+        # predict
+        test_pred = model.predict(
+            np.asarray(test_coords), test_x, gwr_results.scale,
+            gwr_results.resid_response
+        ).predictions
+        runtime = time.time() - tic
+        res_df.append(
+            add_metrics(test_pred, test_y, res_dict_init, "GWR", runtime)
+        )
 
     # Finalize results
     res_df = pd.DataFrame(res_df)
@@ -218,7 +204,7 @@ for DATASET in ["meuse", "california_housing"]:
 
     results_grouped = results.groupby(
         ["Method"]
-    ).mean().drop(["fold", "max_depth"], axis=1).sort_values("MSE")
+    ).mean().drop(["fold", "max_depth"], axis=1).sort_values("RMSE")
     results_grouped.to_csv(os.path.join("outputs", f"results_{DATASET}.csv"))
 
     print(results_grouped)
