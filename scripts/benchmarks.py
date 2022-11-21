@@ -117,11 +117,15 @@ def cross_validation(data):
         )
 
         # Method 4: Spatial RF:
-        sp = SpatialRandomForest(
-            max_depth=max_depth, neighbors=spatial_neighbors
+        sp1 = SpatialRandomForest(
+            n_estimators=20, max_depth=max_depth, neighbors=spatial_neighbors
         )
-        sp.tune_neighbors(train_x, train_y, train_coords)
+        sp1.tune_neighbors(train_x, train_y, train_coords)
+        print("spatial rf tuned neighbors:", sp1.neighbors)
         tic = time.time()
+        sp = SpatialRandomForest(
+            n_estimators=100, max_depth=max_depth, neighbors=sp1.neighbors
+        )
         sp.fit(train_x, train_y, train_coords)
         test_pred = sp.predict(test_x, test_coords)
         runtime = time.time() - tic
@@ -132,11 +136,15 @@ def cross_validation(data):
         )
 
         # Method 5: Geographical RF (one RF per sample)
-        geo_rf = GeographicalRandomForest(
+        geo_rf1 = GeographicalRandomForest(
             n_estimators=10, neighbors=spatial_neighbors, max_depth=max_depth
         )
-        geo_rf.tune_neighbors(train_x, train_y, train_coords)
+        geo_rf1.tune_neighbors(train_x, train_y, train_coords)
+        print("georf tuned neighbors", geo_rf1.neighbors)
         tic = time.time()
+        geo_rf = GeographicalRandomForest(
+            n_estimators=50, neighbors=geo_rf1.neighbors, max_depth=max_depth
+        )
         geo_rf.fit(train_x, train_y, train_coords)
         test_pred = geo_rf.predict(test_x, test_coords)
         runtime = time.time() - tic
@@ -177,6 +185,7 @@ def cross_validation(data):
     res_df = pd.DataFrame(res_df)
     return res_df
 
+os.makedirs("outputs", exist_ok=True)
 
 dataset_target = {
     "plants": "richness_species_vascular",
