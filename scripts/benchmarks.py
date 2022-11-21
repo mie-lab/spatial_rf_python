@@ -45,7 +45,7 @@ def prepare_data(data, target, lon="x", lat="y"):
 def add_metrics(test_pred, test_y, res_dict_init, method, runtime):
     res_dict = res_dict_init.copy()
     res_dict["Method"] = method
-    res_dict["MSE"] = mean_squared_error(test_pred, test_y)
+    res_dict["RMSE"] = mean_squared_error(test_pred, test_y, squared=False)
     res_dict["MAE"] = mean_absolute_error(test_pred, test_y)
     res_dict["R-Squared"] = r2_score(test_y, test_pred)
     res_dict["Runtime"] = runtime
@@ -121,6 +121,7 @@ def cross_validation(data):
         sp = SpatialRandomForest(
             max_depth=max_depth, neighbors=spatial_neighbors
         )
+        sp.tune_neighbors(train_x, train_y, train_coords)
         sp.fit(train_x, train_y, train_coords)
         test_pred = sp.predict(test_x, test_coords)
         runtime = time.time() - tic
@@ -135,6 +136,7 @@ def cross_validation(data):
         geo_rf = GeographicalRandomForest(
             n_estimators=10, neighbors=spatial_neighbors, max_depth=max_depth
         )
+        geo_rf.tune_neighbors(train_x, train_y, train_coords)
         geo_rf.fit(train_x, train_y, train_coords)
         test_pred = geo_rf.predict(test_x, test_coords)
         runtime = time.time() - tic
@@ -192,9 +194,9 @@ def cross_validation(data):
 
 dataset_target = {
     "plants": "richness_species_vascular",
+    "meuse": "zinc",
     "atlantic": "Rate",
     "deforestation": "deforestation_quantile",
-    "meuse": "zinc",
     "california_housing": "median_house_value"
 }
 
