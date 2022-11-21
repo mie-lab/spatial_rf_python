@@ -117,11 +117,11 @@ def cross_validation(data):
         )
 
         # Method 4: Spatial RF:
-        tic = time.time()
         sp = SpatialRandomForest(
             max_depth=max_depth, neighbors=spatial_neighbors
         )
         sp.tune_neighbors(train_x, train_y, train_coords)
+        tic = time.time()
         sp.fit(train_x, train_y, train_coords)
         test_pred = sp.predict(test_x, test_coords)
         runtime = time.time() - tic
@@ -132,11 +132,11 @@ def cross_validation(data):
         )
 
         # Method 5: Geographical RF (one RF per sample)
-        tic = time.time()
         geo_rf = GeographicalRandomForest(
             n_estimators=10, neighbors=spatial_neighbors, max_depth=max_depth
         )
         geo_rf.tune_neighbors(train_x, train_y, train_coords)
+        tic = time.time()
         geo_rf.fit(train_x, train_y, train_coords)
         test_pred = geo_rf.predict(test_x, test_coords)
         runtime = time.time() - tic
@@ -186,8 +186,9 @@ dataset_target = {
     "california_housing": "median_house_value"
 }
 
-for DATASET in ["meuse", "california_housing"]:
-    # "plants", "atlantic", "deforestation"]:
+for DATASET in [
+    "meuse", "plants", "atlantic", "deforestation", "california_housing"
+]:
     print("\nDATASET", DATASET, "\n")
 
     dataset_x = {}  # per default: x
