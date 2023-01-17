@@ -162,7 +162,11 @@ def cross_validation(data):
             train_y,
             train_x,
         )
-        gwr_bw = gwr_selector.search(criterion="AICc")
+        # try:
+        if DATASET == "deforestation" or DATASET == "california_housing":
+            gwr_bw = gwr_selector.search(criterion="AICc", bw_min = 1000)
+        else:
+            gwr_bw = gwr_selector.search(criterion="AICc")
         # create and train model
         model = GWR(
             train_coords,
