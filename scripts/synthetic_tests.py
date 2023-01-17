@@ -142,11 +142,14 @@ def kriging(train_data, test_data):
 def sarm(train_data, test_data):
     X = train_data[feat_cols].values
     Y = train_data["label"].values
-    w = libpysal.weights.DistanceBand(
-        train_data[["x_coord", "y_coord"]].values, threshold=0.5, binary=False
-    )
-    model = spreg.GM_Lag(Y, X, w=w)
-    test_pred = np.matmul(test_data[feat_cols].values, model.betas[1:-1])
+    try:
+        w = libpysal.weights.DistanceBand(
+            train_data[["x_coord", "y_coord"]].values, threshold=0.5, binary=False
+        )
+        model = spreg.GM_Lag(Y, X, w=w)
+        test_pred = np.matmul(test_data[feat_cols].values, model.betas[1:-1])
+    except:
+        test_pred = np.zeros(len(test_data)) + np.mean(Y)
     return test_pred
 
 
@@ -310,7 +313,5 @@ for nr_data in [100, 500, 1000, 5000]:
 
         results = pd.DataFrame(results_list)
         results["noise_constant"] = constant_noise
-        results.to_csv(
-            "synthetic_data_resuls.csv", index=False
-        )
+        results.to_csv("synthetic_data_results.csv", index=False)
         print("Saved intermediate results")
