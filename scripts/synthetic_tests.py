@@ -16,6 +16,9 @@ from sprf.spatial_random_forest import SpatialRandomForest
 from sprf.geographical_random_forest import GeographicalRandomForest
 from mgwr.gwr import GWR
 from mgwr.sel_bw import Sel_BW
+from pykrige.rk import RegressionKriging
+import spreg
+import libpysal
 
 
 def non_linear_function_simple(feat_arr, weights):
@@ -123,6 +126,30 @@ def rf_geographical(train_data, test_data):
     return test_pred
 
 
+def kriging(train_data, test_data):
+    krig = RegressionKriging(RandomForestRegressor(), verbose=False)
+    krig.fit(
+        train_data[feat_cols].values,
+        train_data[["x_coord", "y_coord"]].values,
+        train_data["label"].values,
+    )
+    test_pred = krig.predict(
+        test_data[feat_cols].values, test_data[["x_coord", "y_coord"]].values
+    )
+    return test_pred
+
+
+def sarm(train_data, test_data):
+    X = train_data[feat_cols].values
+    Y = train_data["label"].values
+    w = libpysal.weights.DistanceBand(
+        train_data[["x_coord", "y_coord"]].values, threshold=0.5, binary=False
+    )
+    model = spreg.GM_Lag(Y, X, w=w)
+    test_pred = np.matmul(test_data[feat_cols].values, model.betas[1:-1])
+    return test_pred
+
+
 def my_gwr(train_data, test_data):
     try:
         train_coords = np.array(train_data[["x_coord", "y_coord"]])
@@ -172,6 +199,7 @@ def add_results(score, name):
 
 
 # parameters and models to include
+np.random.seed(42)
 noise_level_range = [0, 0.1, 0.2, 0.3, 0.4, 0.5]
 locality_range = [0, 0.1, 0.2, 0.3, 0.4, 0.5]
 model_function_names = [
@@ -180,7 +208,9 @@ model_function_names = [
     rf_global,
     rf_spatial,
     my_gwr,
-    rf_geographical,
+    kriging,
+    sarm
+    # rf_geographical,
 ]
 model_names = [
     "linear regression",
@@ -188,12 +218,15 @@ model_names = [
     "RF",
     "spatial RF",
     "GWR",
-    "geographical RF",
+    "Kriging",
+    "SAR"
+    # "geographical RF",
 ]
 
 # MAIN PARAMETERS
 nr_feats = 5
 max_depth = 30
+constant_noise = False
 
 # save results
 results_list = []
@@ -215,8 +248,8 @@ for nr_data in [100, 500, 1000, 5000]:
     spatial_variation = np.zeros((nr_data, nr_feats))
     for i in range(nr_feats):
         spatial_variation[:, i] = 0.5 * (
-            np.sin(synthetic_data["x_coord"].values * np.pi * 1.5 + i)
-            + np.cos(synthetic_data["y_coord"].values * np.pi * 1.5 + i)
+            np.sin(synthetic_data["x_coord"].values * np.pi * 2 + i)
+            + np.cos(synthetic_data["y_coord"].values * np.pi * 2 + i)
         )
 
     for noise_level in noise_level_range:
@@ -244,9 +277,20 @@ for nr_data in [100, 500, 1000, 5000]:
                         spatially_dependent_weights,
                     )
 
-                synthetic_data["label"] = synthetic_data[
-                    "label"
-                ] + np.random.normal(0, noise_level, nr_data)
+                if constant_noise:
+                    noise = np.random.normal(0, noise_level, nr_data)
+                else:
+                    # e.g. high noise level (0.5), spatial variation is from
+                    # sin and cos so it's between -1 and 1, so we make + 1
+                    # so on average we multiply by 1, but varying variance
+                    # between 0.5 * 0 and 0.5 * 2
+                    spatially_dependent_noise = noise_level * (
+                        spatial_variation[:, 0] + 1  # without locality level!
+                    )
+                    noise = np.random.normal(
+                        0, spatially_dependent_noise, nr_data
+                    )
+                synthetic_data["label"] = synthetic_data["label"] + noise
 
                 train_data, test_data = (
                     synthetic_data[:train_cutoff],
@@ -265,5 +309,8 @@ for nr_data in [100, 500, 1000, 5000]:
                     add_results(score, name)
 
         results = pd.DataFrame(results_list)
-        results.to_csv("synthetic_data_results.csv", index=False)
+        results["noise_constant"] = constant_noise
+        results.to_csv(
+            "synthetic_data_resuls.csv", index=False
+        )
         print("Saved intermediate results")
