@@ -144,7 +144,9 @@ def sarm(train_data, test_data):
     Y = train_data["label"].values
     try:
         w = libpysal.weights.DistanceBand(
-            train_data[["x_coord", "y_coord"]].values, threshold=0.5, binary=False
+            train_data[["x_coord", "y_coord"]].values,
+            threshold=0.5,
+            binary=False,
         )
         model = spreg.GM_Lag(Y, X, w=w)
         test_pred = np.matmul(test_data[feat_cols].values, model.betas[1:-1])
@@ -229,7 +231,7 @@ model_names = [
 # MAIN PARAMETERS
 nr_feats = 5
 max_depth = 30
-constant_noise = False
+noise_type = "heterogenous - different"
 
 # save results
 results_list = []
@@ -280,9 +282,23 @@ for nr_data in [100, 500, 1000, 5000]:
                         spatially_dependent_weights,
                     )
 
-                if constant_noise:
+                if noise_type == "constant":
                     noise = np.random.normal(0, noise_level, nr_data)
-                else:
+                elif noise_type == "heterogenous - different":
+                    spatial_variation_different = noise_level * (
+                        0.5
+                        * (
+                            synthetic_data["x_coord"].values
+                            + synthetic_data["y_coord"].values
+                        )
+                        + 1
+                    )
+                    noise = np.random.normal(
+                        0,
+                        spatial_variation_different,
+                        len(spatial_variation_different),
+                    )
+                elif noise_type == "heterogenous - same":
                     # e.g. high noise level (0.5), spatial variation is from
                     # sin and cos so it's between -1 and 1, so we make + 1
                     # so on average we multiply by 1, but varying variance
@@ -293,6 +309,9 @@ for nr_data in [100, 500, 1000, 5000]:
                     noise = np.random.normal(
                         0, spatially_dependent_noise, nr_data
                     )
+                else:
+                    raise RuntimeError("Noise must be one of above")
+
                 synthetic_data["label"] = synthetic_data["label"] + noise
 
                 train_data, test_data = (
@@ -312,6 +331,6 @@ for nr_data in [100, 500, 1000, 5000]:
                     add_results(score, name)
 
         results = pd.DataFrame(results_list)
-        results["noise_constant"] = constant_noise
+        results["noise_type"] = noise_type
         results.to_csv("synthetic_data_results.csv", index=False)
         print("Saved intermediate results")
