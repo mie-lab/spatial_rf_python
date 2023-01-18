@@ -4,8 +4,10 @@ import sys
 import numpy as np
 import pandas as pd
 import time
+
 # ignore linalg warnings from MGWR package
 import warnings
+
 warnings.filterwarnings("ignore")
 
 # gwr:
@@ -17,6 +19,8 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sprf.spatial_random_forest import SpatialRandomForest
 from sprf.geographical_random_forest import GeographicalRandomForest
+
+from models import *
 
 
 def get_folds(nr_samples, nr_folds=10):
@@ -38,8 +42,11 @@ def get_folds(nr_samples, nr_folds=10):
 
 def prepare_data(data, target, lon="x", lat="y"):
     """Assumes that all other columns are used as covariates"""
-    covariates = [col for col in data.columns if col not in [lon, lat, target]]
-    return data[covariates], data[target], data[[lon, lat]]
+    # covariates = [col for col in data.columns if col not in [lon, lat, target]]
+    # return data[covariates], data[target], data[[lon, lat]]
+    return data.rename(
+        columns={target: "label", lon: "x_coord", lat: "y_coord"}
+    )
 
 
 def add_metrics(test_pred, test_y, res_dict_init, method, runtime):
@@ -71,123 +78,44 @@ def cross_validation(data):
         res_dict_init = {"fold": fold, "max_depth": max_depth}
         train_data = data.iloc[train_inds[fold]]
         test_data = data.iloc[test_inds[fold]]
-        train_x, train_y, train_coords = prepare_data(
+        train_data_renamed = prepare_data(
             train_data, target, x_coord_name, y_coord_name
         )
-        test_x, test_y, test_coords = prepare_data(
+        test_data_renamed = prepare_data(
             test_data, target, x_coord_name, y_coord_name
         )
+        feat_cols = [
+            col
+            for col in train_data_renamed.columns
+            if "coord" not in col and col != "label"
+        ]
         # print(
         #     train_x.shape, train_y.shape, train_coords.shape, test_x.shape,
         #     test_y.shape, test_coords.shape
         # )
-
-        # Method 1: global RF
-        tic = time.time()
-        rf = RandomForestRegressor(max_depth=max_depth)
-        rf.fit(train_x, train_y)
-        test_pred = rf.predict(test_x)
-        runtime = time.time() - tic
-        res_df.append(
-            add_metrics(
-                test_pred, test_y, res_dict_init, "global_rf", runtime
+        for model_function, name in zip(model_function_names, model_names):
+            tic = time.time()
+            test_pred = model_function(
+                train_data_renamed.copy(),
+                test_data_renamed.copy(),
+                feat_cols=feat_cols,
             )
-        )
-
-        # Method 2: global RF with coordinates
-        tic = time.time()
-        rf = RandomForestRegressor(max_depth=max_depth)
-        rf.fit(train_x.join(train_coords), train_y)
-        test_pred = rf.predict(test_x.join(test_coords))
-        runtime = time.time() - tic
-        res_df.append(
-            add_metrics(test_pred, test_y, res_dict_init, "coord_rf", runtime)
-        )
-
-        # Method 3: linear regression
-        tic = time.time()
-        lr = LinearRegression()
-        lr.fit(train_x, train_y)
-        test_pred = lr.predict(test_x)
-        runtime = time.time() - tic
-        res_df.append(
-            add_metrics(
-                test_pred, test_y, res_dict_init, "linear_regression", runtime
+            runtime = time.time() - tic
+            res_df.append(
+                add_metrics(
+                    test_pred,
+                    test_data_renamed["label"],
+                    res_dict_init,
+                    name,
+                    runtime,
+                )
             )
-        )
-
-        # Method 4: Spatial RF:
-        sp1 = SpatialRandomForest(
-            n_estimators=20, max_depth=max_depth, neighbors=spatial_neighbors
-        )
-        sp1.tune_neighbors(train_x, train_y, train_coords)
-        print("spatial rf tuned neighbors:", sp1.neighbors)
-        tic = time.time()
-        sp = SpatialRandomForest(
-            n_estimators=100, max_depth=max_depth, neighbors=sp1.neighbors
-        )
-        sp.fit(train_x, train_y, train_coords)
-        test_pred = sp.predict(test_x, test_coords)
-        runtime = time.time() - tic
-        res_df.append(
-            add_metrics(
-                test_pred, test_y, res_dict_init, "spatial_rf", runtime
-            )
-        )
-
-        # Method 5: Geographical RF (one RF per sample)
-        geo_rf1 = GeographicalRandomForest(
-            n_estimators=10, neighbors=spatial_neighbors, max_depth=max_depth
-        )
-        geo_rf1.tune_neighbors(train_x, train_y, train_coords)
-        print("georf tuned neighbors", geo_rf1.neighbors)
-        tic = time.time()
-        geo_rf = GeographicalRandomForest(
-            n_estimators=50, neighbors=geo_rf1.neighbors, max_depth=max_depth
-        )
-        geo_rf.fit(train_x, train_y, train_coords)
-        test_pred = geo_rf.predict(test_x, test_coords)
-        runtime = time.time() - tic
-        res_df.append(
-            add_metrics(test_pred, test_y, res_dict_init, "geo_rf", runtime)
-        )
-
-        # Method 6: GWR:
-        tic = time.time()
-        train_coords = np.array(train_coords)
-        train_y = np.expand_dims(np.array(train_y), 1)
-        train_x = np.array(train_x)
-        gwr_selector = Sel_BW(
-            train_coords,
-            train_y,
-            train_x,
-        )
-        # try:
-        if DATASET == "deforestation" or DATASET == "california_housing":
-            gwr_bw = gwr_selector.search(criterion="AICc", bw_min = 1000)
-        else:
-            gwr_bw = gwr_selector.search(criterion="AICc")
-        # create and train model
-        model = GWR(
-            train_coords,
-            train_y,
-            train_x,
-            gwr_bw,
-        )
-        gwr_results = model.fit()
-        # predict
-        test_pred = model.predict(
-            np.asarray(test_coords), test_x, gwr_results.scale,
-            gwr_results.resid_response
-        ).predictions
-        runtime = time.time() - tic
-        res_df.append(
-            add_metrics(test_pred, test_y, res_dict_init, "GWR", runtime)
-        )
+            print(name, res_df[-1]["R-Squared"])
 
     # Finalize results
     res_df = pd.DataFrame(res_df)
     return res_df
+
 
 os.makedirs("outputs", exist_ok=True)
 
@@ -196,12 +124,39 @@ dataset_target = {
     "meuse": "zinc",
     "atlantic": "Rate",
     "deforestation": "deforestation_quantile",
-    "california_housing": "median_house_value"
+    "california_housing": "median_house_value",
 }
 
-for DATASET in [
-    "meuse", "plants", "atlantic", "deforestation", "california_housing"
-]:
+model_function_names = [
+    linear_regression,
+    rf_coordinates,
+    rf_global,
+    rf_spatial,
+    my_gwr,
+    kriging,
+    sarm
+    # rf_geographical,
+]
+model_names = [
+    "linear regression",
+    "RF (coordinates)",
+    "RF",
+    "spatial RF",
+    "GWR",
+    "Kriging",
+    "SAR"
+    # "geographical RF",
+]
+
+datasets = [
+    "meuse",
+    "plants",
+    "atlantic",
+    "deforestation",
+    "california_housing",
+]
+
+for DATASET in datasets:
     print("\nDATASET", DATASET, "\n")
 
     dataset_x = {}  # per default: x
@@ -216,10 +171,15 @@ for DATASET in [
         os.path.join("outputs", f"results_{DATASET}_folds.csv"), index=False
     )
 
-    results_grouped = results.groupby(
-        ["Method"]
-    ).mean().drop(["fold", "max_depth"], axis=1).sort_values("RMSE")
-    results_grouped.to_csv(os.path.join("outputs", f"results_{DATASET}.csv"))
+    results_grouped = (
+        results.groupby(["Method"])
+        .mean()
+        .drop(["fold", "max_depth"], axis=1)
+        .sort_values("RMSE")
+    )
+    results_grouped.to_csv(
+        os.path.join("outputs", "real_jan_22", f"results_{DATASET}.csv")
+    )
 
     print(results_grouped)
     print("--------------")
