@@ -101,14 +101,28 @@ def sarm(train_data, test_data, feat_cols=[], **kwargs):
     X = train_data[feat_cols].values
     Y = train_data["label"].values
     try:
+        dist_with_next = (
+            train_data[["x_coord", "y_coord"]]
+            - train_data[["x_coord", "y_coord"]].shift(1)
+        ) ** 2
+        thresh = (
+            np.sqrt(
+                dist_with_next["x_coord"] + dist_with_next["y_coord"]
+            ).median()
+        )
         w = libpysal.weights.DistanceBand(
-            train_data[["x_coord", "y_coord"]].values,
-            threshold=0.5,
+            train_data[["x_coord", "y_coord"]].values.astype(float),
+            threshold=thresh,
             binary=False,
         )
         model = spreg.GM_Lag(Y, X, w=w)
-        test_pred = np.matmul(test_data[feat_cols].values, model.betas[1:-1])
+        # print("pseudo r2", model.pr2)
+        test_pred = (
+            np.matmul(test_data[feat_cols].values, model.betas[1:-1])
+            + model.betas[0]
+        )
     except:
+        print("ERROR in SAR")
         test_pred = np.zeros(len(test_data)) + np.mean(Y)
     return test_pred
 
