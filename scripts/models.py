@@ -4,7 +4,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sprf.spatial_random_forest import SpatialRandomForest
 from sprf.geographical_random_forest import GeographicalRandomForest
-
+from scipy.spatial import distance_matrix
 from mgwr.gwr import GWR
 from mgwr.sel_bw import Sel_BW
 from pykrige.rk import RegressionKriging
@@ -105,11 +105,9 @@ def sarm(train_data, test_data, feat_cols=[], **kwargs):
             train_data[["x_coord", "y_coord"]]
             - train_data[["x_coord", "y_coord"]].shift(1)
         ) ** 2
-        thresh = (
-            np.sqrt(
-                dist_with_next["x_coord"] + dist_with_next["y_coord"]
-            ).median()
-        )
+        thresh = np.sqrt(
+            dist_with_next["x_coord"] + dist_with_next["y_coord"]
+        ).median()
         w = libpysal.weights.DistanceBand(
             train_data[["x_coord", "y_coord"]].values.astype(float),
             threshold=thresh,
@@ -117,9 +115,26 @@ def sarm(train_data, test_data, feat_cols=[], **kwargs):
         )
         model = spreg.GM_Lag(Y, X, w=w)
         # print("pseudo r2", model.pr2)
-        test_pred = (
-            np.matmul(test_data[feat_cols].values, model.betas[1:-1])
-            + model.betas[0]
+        intercept = model.betas[0]
+        coeff = model.betas[1:-1]
+        roh = model.betas[-1]
+        # basic is just X\beta
+        test_pred_basic = (
+            np.matmul(test_data[feat_cols].values, coeff) + intercept
+        )
+        # complex is with the second part
+        def get_weights_as_array(points, max_dist):
+            dist_matrix = distance_matrix(points, points)
+            my_w = 1 / dist_matrix
+            my_w[my_w == np.inf] = 0
+            my_w[my_w < 1 / max_dist] = 0
+            return my_w
+
+        W = get_weights_as_array(
+            test_data[["x_coord", "y_coord"]].values, thresh
+        )
+        test_pred = np.matmul(
+            np.linalg.inv(np.identity(len(W)) - roh * W), test_pred_basic
         )
     except:
         print("ERROR in SAR")

@@ -74,19 +74,15 @@ def cross_validation(data):
     spatial_neighbors = len(data) // 5  # one fifth of the dataset
     print("Number of neighbors considered for spatial RF:", spatial_neighbors)
 
+    data_renamed = prepare_data(data.copy(), target, x_coord_name, y_coord_name)
+
     for fold in range(nr_folds):
         res_dict_init = {"fold": fold, "max_depth": max_depth}
-        train_data = data.iloc[train_inds[fold]]
-        test_data = data.iloc[test_inds[fold]]
-        train_data_renamed = prepare_data(
-            train_data, target, x_coord_name, y_coord_name
-        )
-        test_data_renamed = prepare_data(
-            test_data, target, x_coord_name, y_coord_name
-        )
+        train_data = data_renamed.iloc[train_inds[fold]]
+        test_data = data_renamed.iloc[test_inds[fold]]
         feat_cols = [
             col
-            for col in train_data_renamed.columns
+            for col in train_data.columns
             if "coord" not in col and col != "label"
         ]
         # print(
@@ -96,18 +92,12 @@ def cross_validation(data):
         for model_function, name in zip(model_function_names, model_names):
             tic = time.time()
             test_pred = model_function(
-                train_data_renamed.copy(),
-                test_data_renamed.copy(),
-                feat_cols=feat_cols,
+                train_data.copy(), test_data.copy(), feat_cols=feat_cols,
             )
             runtime = time.time() - tic
             res_df.append(
                 add_metrics(
-                    test_pred,
-                    test_data_renamed["label"],
-                    res_dict_init,
-                    name,
-                    runtime,
+                    test_pred, test_data["label"], res_dict_init, name, runtime,
                 )
             )
             print(name, res_df[-1]["R-Squared"])
@@ -156,6 +146,8 @@ datasets = [
     "california_housing",
 ]
 
+np.random.seed(42)
+
 for DATASET in datasets:
     print("\nDATASET", DATASET, "\n")
 
@@ -178,7 +170,7 @@ for DATASET in datasets:
         .sort_values("RMSE")
     )
     results_grouped.to_csv(
-        os.path.join("outputs", "real_jan_22", f"results_{DATASET}.csv")
+        os.path.join("outputs", f"results_{DATASET}.csv")
     )
 
     print(results_grouped)
