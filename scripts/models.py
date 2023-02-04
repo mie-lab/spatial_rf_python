@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
@@ -36,7 +37,7 @@ def rf_global(train_data, test_data, feat_cols=[], max_depth=30, **kwargs):
 
 
 def rf_spatial(
-    train_data, test_data, feat_cols=[], max_depth=30, nr_data=500, *kwargs
+    train_data, test_data, feat_cols=[], max_depth=30, nr_data=500, **kwargs
 ):
     n_estim = 100 if nr_data > 200 else 50
     regr = SpatialRandomForest(
@@ -94,6 +95,43 @@ def kriging(train_data, test_data, feat_cols=[], **kwargs):
         test_data[feat_cols].values,
         test_data[["x_coord", "y_coord"]].values.astype(float),
     )
+    return test_pred
+
+
+def get_weights_as_array(points, max_points):
+    dist_matrix = distance_matrix(points, points)
+    my_w = 1 / dist_matrix
+    my_w[my_w == np.inf] = 0
+    sorted_vals_points = np.sort(my_w, axis=1)[:, -max_points]
+    my_w[my_w < sorted_vals_points] = 0
+    my_w = my_w / np.expand_dims(np.sum(my_w, axis=1), 0)
+    return my_w
+
+
+def morans_i(y, w):
+    sum_numerator = 0
+    sum_denominator = 0
+    normed_y = y - np.mean(y)
+    for i in range(len(w)):
+        for j in range(len(w)):
+            sum_numerator += w[i, j] * normed_y[i] * normed_y[j]
+        sum_denominator += normed_y[i] ** 2
+    return (len(y) / np.sum(w)) * (sum_numerator / sum_denominator)
+
+
+def slx(train_data, test_data, w_cutoff=20, feat_cols=[], **kwargs):
+    divide_test = len(train_data)
+    together = pd.concat((train_data, test_data))
+    w = get_weights_as_array(together[["x_coord", "y_coord"]].values, w_cutoff)
+    X = together[feat_cols].values
+    lagged_X = np.matmul(w, X)
+    X_with_lag = np.hstack((X, lagged_X))
+
+    regr = LinearRegression()
+    # fit training with lagged X
+    regr.fit(X_with_lag[:divide_test], train_data["label"].values)
+    # predict test part
+    test_pred = regr.predict(X_with_lag[divide_test:])
     return test_pred
 
 

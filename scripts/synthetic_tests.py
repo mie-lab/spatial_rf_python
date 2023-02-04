@@ -9,8 +9,30 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-from sklearn.metrics import r2_score
+from sklearn.metrics import r2_score, mean_squared_error
 from models import *
+
+
+def create_data(nr_data, nr_feats=5, rho=0.6, weight_matrix_cutoff=20):
+
+    x_coords = np.random.rand(nr_data, 2) * 2 - 1
+
+    all_feats = np.zeros((nr_data, nr_feats))
+
+    for feat in range(nr_feats):
+        att = np.random.uniform(-1, 1, nr_data)
+
+        w = get_weights_as_array(x_coords, weight_matrix_cutoff)
+        # compute I - rho*W
+        m = np.identity(len(x_coords)) - rho * w
+        # invert and multiply with x_j
+        att_hat = np.matmul(np.linalg.inv(m), att)
+        # scale to -1 to 1
+        att_hat = (att_hat - np.min(att_hat)) / (
+            np.max(att_hat) - np.min(att_hat)
+        ) * 2 - 1
+        all_feats[:, feat] = att_hat
+    return np.hstack([x_coords, all_feats])
 
 
 def non_linear_function_simple(feat_arr, weights):
@@ -51,21 +73,6 @@ def non_linear_function(feat_arr, weights):
     return np.sum(feature_transformed, axis=1)
 
 
-def add_results(score, name):
-    results_list.append(
-        {
-            "nr_data": nr_data,
-            "noise": noise_level,
-            "locality": locality,
-            "data mode": mode,
-            "model": name,
-            "time": time_diff,
-            "R2 score": score,
-        }
-    )
-    print(name, round(score, 3))
-
-
 # parameters and models to include
 np.random.seed(42)
 noise_level_range = [0, 0.1, 0.2, 0.3, 0.4, 0.5]
@@ -77,7 +84,8 @@ model_function_names = [
     rf_spatial,
     my_gwr,
     kriging,
-    sarm
+    sarm,
+    slx
     # rf_geographical,
 ]
 model_names = [
@@ -87,14 +95,18 @@ model_names = [
     "spatial RF",
     "GWR",
     "Kriging",
-    "SAR"
+    "SAR",
+    "SLX"
     # "geographical RF",
 ]
 
 # MAIN PARAMETERS
 nr_feats = 5
 max_depth = 30
-noise_type = "heterogenous - different"
+w_cutoff = 20
+rho = 0.75
+noise_type = "uniformly distributed"
+# 'heterogeneous - same', 'heterogeneous - different'
 
 # save results
 results_list = []
@@ -107,10 +119,26 @@ for nr_data in [100, 500, 1000, 5000]:
     # MAKE MAIN DATA
     train_cutoff = int(nr_data * 0.9)
     feat_cols = ["feat_" + str(i) for i in range(nr_feats)]
-    synthetic_data = pd.DataFrame(
-        np.random.rand(nr_data, 2 + nr_feats) * 2 - 1,
-        columns=["x_coord", "y_coord"] + feat_cols,
+    # V1: X random uniform
+    # synthetic_data_array = np.random.rand(nr_data, 2 + nr_feats) * 2 - 1
+    # V2: with spatial lag
+    synthetic_data_array = create_data(
+        nr_data, nr_feats=nr_feats, rho=rho, weight_matrix_cutoff=w_cutoff
     )
+    print(synthetic_data_array.shape)
+
+    synthetic_data = pd.DataFrame(
+        synthetic_data_array, columns=["x_coord", "y_coord"] + feat_cols,
+    )
+    print(synthetic_data.head(5))
+    # Double check Moran's I
+    w = get_weights_as_array(synthetic_data_array[:, :2], w_cutoff)
+    for t in range(5):
+        print(
+            "Moran's I of coefficient",
+            t,
+            morans_i(synthetic_data_array[:, t + 2], w),
+        )
 
     # simulate spatial variation of features (varying per weight)
     spatial_variation = np.zeros((nr_data, nr_feats))
@@ -145,9 +173,9 @@ for nr_data in [100, 500, 1000, 5000]:
                         spatially_dependent_weights,
                     )
 
-                if noise_type == "constant":
+                if noise_type == "uniformly distributed":
                     noise = np.random.normal(0, noise_level, nr_data)
-                elif noise_type == "heterogenous - different":
+                elif noise_type == "heterogeneous - different":
                     spatial_variation_different = noise_level * (
                         0.5
                         * (
@@ -161,7 +189,7 @@ for nr_data in [100, 500, 1000, 5000]:
                         spatial_variation_different,
                         len(spatial_variation_different),
                     )
-                elif noise_type == "heterogenous - same":
+                elif noise_type == "heterogeneous - same":
                     # e.g. high noise level (0.5), spatial variation is from
                     # sin and cos so it's between -1 and 1, so we make + 1
                     # so on average we multiply by 1, but varying variance
@@ -189,15 +217,36 @@ for nr_data in [100, 500, 1000, 5000]:
                     test_pred = model_function(
                         train_data.copy(),
                         test_data.copy(),
+                        # train_data.copy(), # for overfitting test
                         feat_cols=feat_cols,
                         max_depth=max_depth,
                         nr_data=nr_data,
+                        w_cutoff=w_cutoff,
                     )
-                    score = r2_score(test_pred, test_data["label"])
+                    # compute metrics
+                    score = r2_score(test_data["label"], test_pred)
+                    rmse = mean_squared_error(
+                        test_data["label"], test_pred, squared=False
+                    )
+                    # train_data["label"]) # for overfitting test
                     time_diff = time.time() - tic
-                    add_results(score, name)
+                    # add to results
+                    results_list.append(
+                        {
+                            "nr_data": nr_data,
+                            "noise": noise_level,
+                            "locality": locality,
+                            "data mode": mode,
+                            "model": name,
+                            "time": time_diff,
+                            "R2 score": score,
+                            "RMSE": rmse,
+                        }
+                    )
+                    print(name, round(score, 3))
 
         results = pd.DataFrame(results_list)
         results["noise_type"] = noise_type
-        results.to_csv("synthetic_data_results.csv", index=False)
+        noise_name = "_".join(noise_type.split(" "))
+        results.to_csv(f"synthetic_data_results_{noise_name}.csv", index=False)
         print("Saved intermediate results")
