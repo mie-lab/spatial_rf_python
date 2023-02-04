@@ -103,8 +103,8 @@ def get_weights_as_array(points, max_points):
     my_w = 1 / dist_matrix
     my_w[my_w == np.inf] = 0
     sorted_vals_points = np.sort(my_w, axis=1)[:, -max_points]
-    my_w[my_w < sorted_vals_points] = 0
-    my_w = my_w / np.expand_dims(np.sum(my_w, axis=1), 0)
+    my_w[my_w < np.expand_dims(sorted_vals_points, 1)] = 0
+    my_w = my_w / np.expand_dims(np.sum(my_w, axis=1), 1)
     return my_w
 
 

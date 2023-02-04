@@ -124,7 +124,8 @@ model_function_names = [
     rf_spatial,
     my_gwr,
     kriging,
-    sarm
+    sarm,
+    slx
     # rf_geographical,
 ]
 model_names = [
@@ -134,7 +135,8 @@ model_names = [
     "spatial RF",
     "GWR",
     "Kriging",
-    "SAR"
+    "SAR",
+    "SLX"
     # "geographical RF",
 ]
 
@@ -169,9 +171,7 @@ for DATASET in datasets:
         .drop(["fold", "max_depth"], axis=1)
         .sort_values("RMSE")
     )
-    results_grouped.to_csv(
-        os.path.join("outputs", f"results_{DATASET}.csv")
-    )
+    results_grouped.to_csv(os.path.join("outputs", f"results_{DATASET}.csv"))
 
     print(results_grouped)
     print("--------------")
