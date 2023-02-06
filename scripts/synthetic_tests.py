@@ -73,6 +73,63 @@ def non_linear_function(feat_arr, weights):
     return np.sum(feature_transformed, axis=1)
 
 
+def non_linear_1(feat_arr, weights):
+    feature_transformed = np.zeros(feat_arr.shape)
+    a, b, c, d, e = (
+        feat_arr[:, 0],
+        feat_arr[:, 1],
+        feat_arr[:, 2],
+        feat_arr[:, 3],
+        feat_arr[:, 4],
+    )
+    # first term: a**2 * b
+    feature_transformed[:, 0] = a ** 2 * np.sin(b) * weights[:, 0]
+    feature_transformed[:, 1] = np.sin(b) * np.log(c ** 2) * d * weights[:, 1]
+    feature_transformed[:, 2] = e ** 3 * np.log(c ** 2) * weights[:, 2]
+    feature_transformed[:, 3] = d ** 2 * np.cos(b) * weights[:, 3]
+    feature_transformed[:, 4] = e * a * d * weights[:, 4]
+
+    return np.sum(feature_transformed, axis=1)
+
+
+def non_linear_2(feat_arr, weights):
+    feature_transformed = np.zeros(feat_arr.shape)
+    a, b, c, d, e = (
+        feat_arr[:, 0],
+        feat_arr[:, 1],
+        feat_arr[:, 2],
+        feat_arr[:, 3],
+        feat_arr[:, 4],
+    )
+    # first term: a**2 * b
+    feature_transformed[:, 0] = a ** 2 * np.sin(b) * weights[:, 0]
+    feature_transformed[:, 1] = np.sin(b) * d * weights[:, 1]
+    feature_transformed[:, 2] = e * np.log(c ** 2) * weights[:, 2]
+    feature_transformed[:, 3] = d ** 2 * np.cos(b) * weights[:, 3]
+    feature_transformed[:, 4] = e * a ** 2 * d * weights[:, 4]
+
+    return np.sum(feature_transformed, axis=1)
+
+
+def non_linear_3(feat_arr, weights):
+    feature_transformed = np.zeros(feat_arr.shape)
+    a, b, c, d, e = (
+        feat_arr[:, 0],
+        feat_arr[:, 1],
+        feat_arr[:, 2],
+        feat_arr[:, 3],
+        feat_arr[:, 4],
+    )
+    # first term: a**2 * b
+    feature_transformed[:, 0] = a ** 2 * weights[:, 0]
+    feature_transformed[:, 1] = b * a * weights[:, 1]
+    feature_transformed[:, 2] = np.log(c ** 2) * weights[:, 2]
+    feature_transformed[:, 3] = c * e * weights[:, 3]
+    feature_transformed[:, 4] = np.sin(d) * weights[:, 4]
+
+    return np.sum(feature_transformed, axis=1)
+
+
 # parameters and models to include
 np.random.seed(42)
 noise_level_range = [0, 0.1, 0.2, 0.3, 0.4, 0.5]
@@ -154,22 +211,32 @@ for nr_data in [100, 500, 1000, 5000]:
             # spatially dependent but linear
             spatially_dependent_weights = weights + locality * spatial_variation
 
-            for mode in ["linear", "non-linear (simple)", "non-linear"]:
+            for mode in ["non-linear 1", "non-linear 2", "non-linear 3"]:
                 print("--------", noise_level, locality, mode)
                 # apply linear or non_linear function
-                if mode == "linear":
-                    synthetic_data["label"] = np.sum(
-                        spatially_dependent_weights
-                        * synthetic_data[feat_cols].values,
-                        axis=1,
+                # if mode == "linear":
+                #     synthetic_data["label"] = np.sum(
+                #         spatially_dependent_weights
+                #         * synthetic_data[feat_cols].values,
+                #         axis=1,
+                #     )
+                # elif "simple" in mode:
+                #     synthetic_data["label"] = non_linear_function_simple(
+                #         synthetic_data[feat_cols].values,
+                #         spatially_dependent_weights,
+                #     )
+                if mode == "non-linear 1":
+                    synthetic_data["label"] = non_linear_1(
+                        synthetic_data[feat_cols].values,
+                        spatially_dependent_weights,
                     )
-                elif "simple" in mode:
-                    synthetic_data["label"] = non_linear_function_simple(
+                elif mode == "non-linear 2":
+                    synthetic_data["label"] = non_linear_2(
                         synthetic_data[feat_cols].values,
                         spatially_dependent_weights,
                     )
                 else:
-                    synthetic_data["label"] = non_linear_function(
+                    synthetic_data["label"] = non_linear_3(
                         synthetic_data[feat_cols].values,
                         spatially_dependent_weights,
                     )
@@ -245,7 +312,7 @@ for nr_data in [100, 500, 1000, 5000]:
                             "RMSE": rmse,
                         }
                     )
-                    print(name, round(score, 3))
+                    print(name, round(rmse, 3))
 
         results = pd.DataFrame(results_list)
         results["noise_type"] = noise_type
