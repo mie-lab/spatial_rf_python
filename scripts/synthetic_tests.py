@@ -103,6 +103,7 @@ model_names = [
 # MAIN PARAMETERS
 nr_feats = 5
 max_depth = 30
+n_estim = 150
 w_cutoff = 20
 rho = 0.75
 noise_type = "uniformly distributed"
@@ -221,6 +222,7 @@ for nr_data in [100, 500, 1000, 5000]:
                         feat_cols=feat_cols,
                         max_depth=max_depth,
                         nr_data=nr_data,
+                        n_estim=n_estim,
                         w_cutoff=w_cutoff,
                     )
                     # compute metrics

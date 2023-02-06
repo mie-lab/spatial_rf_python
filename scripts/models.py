@@ -20,8 +20,10 @@ def linear_regression(train_data, test_data, feat_cols=[], **kwargs):
     return test_pred
 
 
-def rf_coordinates(train_data, test_data, feat_cols=[], max_depth=30, **kwargs):
-    regr = RandomForestRegressor(max_depth=max_depth)
+def rf_coordinates(
+    train_data, test_data, feat_cols=[], max_depth=30, n_estim=100, **kwargs
+):
+    regr = RandomForestRegressor(n_estimators=n_estim, max_depth=max_depth)
     regr.fit(
         train_data[["x_coord", "y_coord"] + feat_cols], train_data["label"]
     )
@@ -29,8 +31,10 @@ def rf_coordinates(train_data, test_data, feat_cols=[], max_depth=30, **kwargs):
     return test_pred
 
 
-def rf_global(train_data, test_data, feat_cols=[], max_depth=30, **kwargs):
-    regr = RandomForestRegressor(max_depth=max_depth)
+def rf_global(
+    train_data, test_data, feat_cols=[], max_depth=30, n_estim=100, **kwargs
+):
+    regr = RandomForestRegressor(n_estimators=n_estim, max_depth=max_depth)
     regr.fit(train_data[feat_cols], train_data["label"])
     test_pred = regr.predict(test_data[feat_cols])
     return test_pred
@@ -84,8 +88,13 @@ def rf_geographical(
     return test_pred
 
 
-def kriging(train_data, test_data, feat_cols=[], **kwargs):
-    krig = RegressionKriging(RandomForestRegressor(), verbose=False)
+def kriging(
+    train_data, test_data, feat_cols=[], max_depth=30, n_estim=100, **kwargs
+):
+    krig = RegressionKriging(
+        RandomForestRegressor(n_estimators=n_estim, max_depth=max_depth),
+        verbose=False,
+    )
     krig.fit(
         train_data[feat_cols].values,
         train_data[["x_coord", "y_coord"]].values,
