@@ -44,6 +44,8 @@ This repository further provides Python implementations of Spatial Random Forest
 
 #### Usage
 
+We demonstrate the usage of the spatial Random Forests in the [demonstration notebook](sprf_demo.ipynb).
+
 The usage is analogous to other scikit-learn models, except that the coordinates must also be given as input.
 ```
 from sprf import SpatialRandomForest
