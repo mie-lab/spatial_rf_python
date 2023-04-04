@@ -35,26 +35,7 @@ def create_data(nr_data, nr_feats=5, rho=0.6, weight_matrix_cutoff=20):
     return np.hstack([x_coords, all_feats])
 
 
-def non_linear_function_simple(feat_arr, weights):
-    if len(weights.shape) == 1:
-        weights = np.expand_dims(weights, 0)
-    function_zoo = [
-        np.sin,
-        np.exp,
-        lambda x: x ** 2,
-        lambda x: x,
-        np.cos,
-        lambda x: np.log(x ** 2),
-    ]
-    feature_transformed = np.zeros(feat_arr.shape)
-    for i in range(feat_arr.shape[1]):
-        feature_transformed[:, i] = (
-            function_zoo[i](feat_arr[:, i]) * weights[:, i]
-        )
-    return np.sum(feature_transformed, axis=1)
-
-
-def non_linear_function(feat_arr, weights):
+def non_linear(feat_arr, weights):
     feature_transformed = np.zeros(feat_arr.shape)
     a, b, c, d, e = (
         feat_arr[:, 0],
@@ -64,11 +45,11 @@ def non_linear_function(feat_arr, weights):
         feat_arr[:, 4],
     )
     # first term: a**2 * b
-    feature_transformed[:, 0] = a ** 2 * b * weights[:, 0]
-    feature_transformed[:, 1] = b * c * d * weights[:, 1]
-    feature_transformed[:, 2] = e ** 3 * c * weights[:, 2]
-    feature_transformed[:, 3] = d ** 2 * 2 * b * weights[:, 3]
-    feature_transformed[:, 4] = e * a * d * weights[:, 4]
+    feature_transformed[:, 0] = a ** 2 * np.sin(b) * weights[:, 0]
+    feature_transformed[:, 1] = np.sin(b) * d * weights[:, 1]
+    feature_transformed[:, 2] = e * np.log(c ** 2) * weights[:, 2]
+    feature_transformed[:, 3] = d ** 2 * np.cos(b) * weights[:, 3]
+    feature_transformed[:, 4] = e * a ** 2 * d * weights[:, 4]
 
     return np.sum(feature_transformed, axis=1)
 
@@ -154,7 +135,7 @@ for nr_data in [100, 500, 1000, 5000]:
             # spatially dependent but linear
             spatially_dependent_weights = weights + locality * spatial_variation
 
-            for mode in ["linear", "non-linear (simple)", "non-linear"]:
+            for mode in ["linear", "non-linear"]:
                 print("--------", noise_level, locality, mode)
                 # apply linear or non_linear function
                 if mode == "linear":
@@ -163,13 +144,8 @@ for nr_data in [100, 500, 1000, 5000]:
                         * synthetic_data[feat_cols].values,
                         axis=1,
                     )
-                elif "simple" in mode:
-                    synthetic_data["label"] = non_linear_function_simple(
-                        synthetic_data[feat_cols].values,
-                        spatially_dependent_weights,
-                    )
                 else:
-                    synthetic_data["label"] = non_linear_function(
+                    synthetic_data["label"] = non_linear(
                         synthetic_data[feat_cols].values,
                         spatially_dependent_weights,
                     )
@@ -245,7 +221,7 @@ for nr_data in [100, 500, 1000, 5000]:
                             "RMSE": rmse,
                         }
                     )
-                    print(name, round(score, 3))
+                    print(name, round(rmse, 3))
 
         results = pd.DataFrame(results_list)
         results["noise_type"] = noise_type
