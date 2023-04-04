@@ -38,18 +38,13 @@ The results will be saved as csv files in a folder named `outputs`.
 
 ### 3) Spatial Random Forest implementation in Python
 
-This repository further provides Python implementations of Spatial Random Forests. Different approaches have been proposed in the literature, including:
-* Simply using coordinates as covariates
-* *Geographical Random Forests*: Training one random forest per sample, using only the sample's neighbors as training data (similar to GWR)
-* *Random Forest Spatial Interpolation*: Including the actual observations at the nearest locations of the prediction location as covariates
-
-Here, we also implement a variant of Geographical Random Forests: Instead of training one Random Forest per sample, we train a fixed number of random forests on spatially distinct set of points. The prediction is then a weighted average of the tree-wise predictions, weighted by the distance of the test sample from the centers of each tree (see figure below).
+This repository further provides Python implementations of Spatial Random Forests. Different approaches have been proposed in the literature, but here, we focus on the one by Georganos et al termed *Geographical Random Forests*. We implement their approach, but since it is very inefficient to train one random forest per sample, we additionally implement a more efficient variant (which we simply call *Spatial Random Forests*): Instead of training one Random Forest per sample, we train a fixed number of random forests on spatially distinct set of points. The prediction is then a weighted average of the tree-wise predictions, weighted by the distance of the test sample from the centers of each tree (see figure below).
 
 <img src="assets/sprf.png" width="250" />
 
 #### Usage
 
-The usage is analogous to other scikit-learn models, except that the coordinates must also be given as input:
+The usage is analogous to other scikit-learn models, except that the coordinates must also be given as input.
 ```
 from sprf import SpatialRandomForest
 spatial_rf = SpatialRandomForest()
@@ -57,7 +52,7 @@ spatial_rf.fit(train_x, train_y, train_coords)
 test_pred = spatial_rf.predict(test_x, test_coords)
 ```
 
-The  `SpatialRandomForest` refers to the one explained above, with spatial decision trees. We also provide an implementation of the Geographical Random Forest by Georganos et al, which can be used in the same way:
+To train a Geographical Random Forest as proposed by Georganos et al, we provide the corresponding class which can be used in the same way:
 
 ```
 from sprf import GeographicalRandomForest
